@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Elements } from '@stripe/react-stripe-js'
 import getStripe from '@/lib/stripe'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/FirebaseAuthContext'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import CheckoutForm from '@/components/CheckoutForm'
 import Link from 'next/link'
 
@@ -42,17 +43,24 @@ export default function CheckoutPage() {
 
   const fetchVideoAndCreatePaymentIntent = async (videoId: string) => {
     try {
-      // 動画情報を取得
-      const { data: videoData, error: videoError } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('id', videoId)
-        .single()
+      if (!db) {
+        setError('データベースが初期化されていません')
+        return
+      }
 
-      if (videoError || !videoData) {
+      // 動画情報を取得
+      const videoDoc = doc(db, 'videos', videoId)
+      const videoSnap = await getDoc(videoDoc)
+
+      if (!videoSnap.exists()) {
         setError('動画が見つかりませんでした')
         return
       }
+
+      const videoData = {
+        id: videoSnap.id,
+        ...videoSnap.data()
+      } as Video
 
       setVideo(videoData)
 

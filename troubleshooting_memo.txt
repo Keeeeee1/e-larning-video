@@ -26,3 +26,36 @@
 2.  `video-learning-platform` のルートディレクトリに移動する (`cd C:\Users\keeey\video-learning-platform`)。
 3.  `npm install` を実行し、プロジェクトの依存関係をインストールする。
 4.  `npm run dev` を実行し、アプリケーションが正常に起動するか確認する。
+
+## 2025年7月16日 Gemini CLIによるトラブルシューティングと修正
+
+### サイト起動問題の再発と解決
+
+1.  **`npm run dev` 実行時の `next.config.mjs` 警告**:
+    - 問題: `optimizeFonts` オプションが認識されないという警告が表示されたが、起動自体には影響なし。
+    - 解決: 警告であり、機能に影響がないため、現状維持。
+
+2.  **`next/font` エラー: `Unknown font 'Geist'`**:
+    - 問題: `src/app/layout.tsx` で `Geist` フォントが見つからないエラーが発生し、ビルドが失敗。
+    - 解決: `src/app/layout.tsx` 内の `Geist` フォントのインポートと使用箇所を、一般的な `Inter` フォントに置き換えた。
+
+3.  **`ReferenceError: module is not defined in ES module scope`**:
+    - 問題: `postcss.config.mjs` がESモジュールとして扱われているにもかかわらず、CommonJSの構文 (`module.exports`) を使用していたためエラーが発生。
+    - 解決: `postcss.config.mjs` の `module.exports = {` を `export default {` に変更し、ESモジュール構文に修正。
+
+4.  **`Error: Cannot find module 'autoprefixer'`**:
+    - 問題: `postcss.config.mjs` で `autoprefixer` を使用するように設定されているが、プロジェクトにインストールされていなかったためエラーが発生。
+    - 解決: `npm install autoprefixer` を実行し、`autoprefixer` パッケージをインストール。
+
+5.  **`Module not found: Can't resolve '@/components/CourseCard'`**:
+    - 問題: `src/app/dashboard/page.tsx` で `CourseCard` コンポーネントをインポートしようとしたが、ファイルが存在しなかったためエラーが発生。
+    - 解決: `src/components/CourseCard.tsx` を新規作成し、シンプルなプレースホルダーコンポーネントを実装。
+
+6.  **`Unhandled Runtime Error: Event handlers cannot be passed to Client Component props.`**:
+    - 問題: `CourseCard` コンポーネントがクライアントコンポーネントとしてマークされていないにもかかわらず、`onClick` イベントハンドラを使用していたためエラーが発生。
+    - 解決: `src/components/CourseCard.tsx` の先頭に `'use client';` ディレクティブを追加し、クライアントコンポーネントとして明示的にマーク。
+
+### 現在の状態
+
+- アプリケーションは起動し、`http://localhost:3000` でアクセス可能。
+- デザインが以前と異なっている可能性がある（フォントの変更、新規コンポーネントのデフォルトデザインによる影響）。

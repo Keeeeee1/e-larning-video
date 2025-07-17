@@ -2,28 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background-start-rgb: 14, 26, 56;
-  --background-end-rgb: 20, 35, 78;
-  --foreground-rgb: 255, 255, 255;
+@layer base {
+  :root {
+    --font-inter: 'Inter', sans-serif;
+    --font-noto-sans-jp: 'Noto Sans JP', sans-serif;
+  }
 
-  --primary-glow: radial-gradient(rgba(1, 65, 255, 0.4), rgba(1, 65, 255, 0));
-  --secondary-glow: linear-gradient(
-    to bottom right,
-    rgba(1, 65, 255, 0),
-    rgba(1, 65, 255, 0),
-    rgba(1, 65, 255, 0.3)
-  );
-}
+  html {
+    font-family: var(--font-noto-sans-jp), var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1;
+    line-height: 1.6;
+  }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-start-rgb))
-    )
-    rgb(var(--background-end-rgb));
+  /* 英数字にはInterを適用 */
+  [lang="en"],
+  .font-en {
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  /* Remove default body styles */
+  body {
+    @apply bg-white text-gray-900;
+  }
 }
 
 @layer utilities {

@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Video Learning Platform
 
-## Getting Started
+Udemyのような動画学習プラットフォームです。Next.js、Firebase、AWS S3、Stripeを使用して構築されています。
 
-First, run the development server:
+## 主な機能
+
+- **動画視聴**: 高品質な動画コンテンツの視聴
+- **購入システム**: Stripe決済による動画の個別購入
+- **認証システム**: Firebase Authenticationによるユーザー認証
+- **動画管理**: AWS S3とCloudFrontによる動画配信
+- **管理者機能**: 動画のアップロードと管理
+- **レスポンシブデザイン**: モバイルフレンドリーなUI
+
+## 技術スタック
+
+- **フロントエンド**: Next.js 14 (App Router), React, TypeScript
+- **スタイリング**: Tailwind CSS
+- **認証**: Firebase Authentication
+- **データベース**: Firestore
+- **決済**: Stripe
+- **動画ストレージ**: AWS S3
+- **CDN**: AWS CloudFront
+- **ホスティング**: Vercel（推奨）
+
+## セットアップ
+
+### 1. 依存関係のインストール
+
+```bash
+npm install
+```
+
+### 2. 環境変数の設定
+
+`.env.local.example`を`.env.local`にコピーし、必要な値を設定してください：
+
+```bash
+cp .env.local.example .env.local
+```
+
+#### Firebase設定
+1. [Firebase Console](https://console.firebase.google.com/)でプロジェクトを作成
+2. Authentication、Firestoreを有効化
+3. 設定 > プロジェクトの設定 > マイアプリから設定値を取得
+
+#### AWS S3設定
+1. AWS S3でバケットを作成
+2. IAMユーザーを作成し、S3へのアクセス権限を付与
+3. CloudFrontディストリビューションを作成（オプション）
+
+#### Stripe設定
+1. [Stripe Dashboard](https://dashboard.stripe.com/)でアカウントを作成
+2. APIキーを取得
+3. Webhookエンドポイントを設定
+
+### 3. 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+アプリケーションは `http://localhost:3000` で起動します。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## デプロイ
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Vercelへのデプロイ
 
-## Learn More
+1. GitHubリポジトリをVercelに接続
+2. 環境変数を設定
+3. デプロイを実行
 
-To learn more about Next.js, take a look at the following resources:
+### 本番環境設定
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Firebase: 本番環境のプロジェクトを作成
+- AWS: 本番用のS3バケットとCloudFrontを設定
+- Stripe: 本番モードに切り替え
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 使用方法
 
-## Deploy on Vercel
+### 管理者
+1. `/upload` - 動画のアップロード
+2. `/dashboard` - 管理者ダッシュボード
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 利用者
+1. `/` - トップページ
+2. `/videos` - 動画一覧
+3. `/videos/[id]` - 動画詳細・視聴
+4. `/checkout/[videoId]` - 購入ページ
+5. `/auth` - ログイン・新規登録
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。

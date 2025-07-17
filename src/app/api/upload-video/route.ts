@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase-server'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { uploadVideoToS3 } from '@/lib/aws-s3'
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,67 +54,43 @@ export async function POST(request: NextRequest) {
 
     // ファイル名を生成（ユーザーID + タイムスタンプ）
     const timestamp = Date.now()
-    const videoFileName = `${userId}/${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-    const thumbnailFileName = thumbnailFile 
-      ? `${userId}/${timestamp}_${thumbnailFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const videoKey = `videos/${userId}/${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const thumbnailKey = thumbnailFile 
+      ? `thumbnails/${userId}/${timestamp}_${thumbnailFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       : null
 
-    // 動画ファイルをSupabase Storageにアップロード
-    console.log('Uploading video file:', videoFileName)
+    // 動画ファイルをAWS S3にアップロード
+    console.log('Uploading video file to S3:', videoKey)
     
-    const videoBuffer = await videoFile.arrayBuffer()
-    const { data: videoUpload, error: videoError } = await supabaseServer.storage
-      .from('videos')
-      .upload(videoFileName, videoBuffer, {
-        contentType: videoFile.type,
-        cacheControl: '3600'
-      })
-
-    if (videoError) {
-      console.error('Video upload failed:', videoError)
+    let videoUrl: string
+    try {
+      videoUrl = await uploadVideoToS3(videoFile, videoKey)
+    } catch (error) {
+      console.error('Video upload failed:', error)
       return NextResponse.json(
-        { error: `Video upload failed: ${videoError.message}` },
+        { error: `Video upload failed: ${error}` },
         { status: 500 }
       )
     }
 
     // サムネイルがある場合はアップロード
     let thumbnailUrl = null
-    if (thumbnailFile && thumbnailFileName) {
-      console.log('Uploading thumbnail file:', thumbnailFileName)
+    if (thumbnailFile && thumbnailKey) {
+      console.log('Uploading thumbnail file to S3:', thumbnailKey)
       
-      const thumbnailBuffer = await thumbnailFile.arrayBuffer()
-      const { data: thumbnailUpload, error: thumbnailError } = await supabaseServer.storage
-        .from('thumbnails')
-        .upload(thumbnailFileName, thumbnailBuffer, {
-          contentType: thumbnailFile.type,
-          cacheControl: '3600'
-        })
-
-      if (thumbnailError) {
-        console.error('Thumbnail upload failed:', thumbnailError)
+      try {
+        thumbnailUrl = await uploadVideoToS3(thumbnailFile, thumbnailKey)
+      } catch (error) {
+        console.error('Thumbnail upload failed:', error)
         // サムネイルのエラーは致命的ではないので続行
-      } else {
-        // サムネイルの公開URLを取得
-        const { data: thumbnailUrlData } = supabaseServer.storage
-          .from('thumbnails')
-          .getPublicUrl(thumbnailFileName)
-        thumbnailUrl = thumbnailUrlData.publicUrl
       }
     }
 
-    // 動画の公開URLを取得
-    const { data: videoUrlData } = supabaseServer.storage
-      .from('videos')
-      .getPublicUrl(videoFileName)
-    const videoUrl = videoUrlData.publicUrl
-
-    // 動画情報をデータベースに保存
-    console.log('Saving video metadata to database')
+    // 動画情報をFirestoreに保存
+    console.log('Saving video metadata to Firestore')
     
-    const { data: videoRecord, error: dbError } = await supabaseServer
-      .from('videos')
-      .insert({
+    try {
+      const videoData = {
         title,
         description: description || '',
         video_url: videoUrl,
@@ -121,34 +99,36 @@ export async function POST(request: NextRequest) {
         category: category || 'その他',
         level: level || '初級',
         price: price || 0,
-        instructor_name: instructorName || 'Unknown'
-      })
-      .select()
-      .single()
-
-    if (dbError) {
-      console.error('Database insert failed:', dbError)
-      
-      // データベース保存に失敗した場合、アップロードしたファイルを削除
-      await supabaseServer.storage.from('videos').remove([videoFileName])
-      if (thumbnailFileName) {
-        await supabaseServer.storage.from('thumbnails').remove([thumbnailFileName])
+        instructor_name: instructorName || 'Unknown',
+        user_id: userId,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
       }
       
+      const docRef = await addDoc(collection(db, 'videos'), videoData)
+      
+      console.log('Video upload completed successfully:', docRef.id)
+
+      return NextResponse.json({
+        success: true,
+        video: {
+          id: docRef.id,
+          ...videoData
+        },
+        videoUrl,
+        thumbnailUrl
+      })
+
+    } catch (error) {
+      console.error('Firestore save failed:', error)
+      
+      // TODO: データベース保存に失敗した場合、S3からファイルを削除
+      
       return NextResponse.json(
-        { error: `Database error: ${dbError.message}` },
+        { error: `Database error: ${error}` },
         { status: 500 }
       )
     }
-
-    console.log('Video upload completed successfully:', videoRecord.id)
-
-    return NextResponse.json({
-      success: true,
-      video: videoRecord,
-      videoUrl,
-      thumbnailUrl
-    })
 
   } catch (error) {
     console.error('Upload failed:', error)

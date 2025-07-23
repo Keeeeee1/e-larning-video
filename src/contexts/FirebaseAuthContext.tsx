@@ -11,6 +11,7 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +35,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Firebase認証が利用可能な場合のみ実行
@@ -89,13 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     if (!auth) {
-      throw new Error('Firebase auth is not initialized');
+      console.log('Firebase auth is not initialized, redirecting to home');
+      router.push('/');
+      return;
     }
     try {
       await signOut(auth);
+      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      router.push('/');
     }
   };
 

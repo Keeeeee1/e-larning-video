@@ -3,14 +3,60 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { ArrowRightIcon, PlayCircleIcon, SparklesIcon } from "@heroicons/react/24/solid";
+import { ArrowRightIcon, PlayCircleIcon, SparklesIcon, CheckIcon } from "@heroicons/react/24/solid";
 import { youtubeVideos } from "@/lib/youtube-videos";
+import { pricingPlans, getStripe, isStripeConfigured } from "@/lib/stripe";
+// useRouterは削除（Linkコンポーネントを使用）
 
 export default function Home() {
   const [email, setEmail] = useState("");
+  const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
 
   // Get featured courses (first 3)
   const featuredCourses = youtubeVideos.slice(0, 3);
+
+  const handleCheckout = async (priceId: string, planName: string) => {
+    try {
+      if (!isStripeConfigured()) {
+        alert('テストモードで決済を試しています。\n\nテストカード番号: 4242 4242 4242 4242\n有効期限: 任意の将来の日付\nCVC: 任意の3桁の数字');
+        // テストモードでも続行
+      }
+
+      setLoadingPriceId(priceId);
+      
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ priceId, planName }),
+      });
+
+      const { sessionId, error } = await response.json();
+      
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      const stripe = await getStripe();
+      if (!stripe) {
+        alert('Stripeが正しく設定されていません。');
+        return;
+      }
+      
+      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
+      
+      if (stripeError) {
+        alert(stripeError.message);
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('エラーが発生しました。もう一度お試しください。');
+    } finally {
+      setLoadingPriceId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -201,6 +247,113 @@ export default function Home() {
 すべてのソリューションを見る
               <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight mb-6">
+              シンプルで透明性の高い料金プラン
+            </h2>
+            <p className="text-xl md:text-2xl text-slate-600 font-light leading-relaxed max-w-3xl mx-auto">
+              工務店様の規模と成長に合わせて、最適なプランをお選びいただけます。
+              <br />
+              すべてのプランに14日間の無料トライアルが含まれています。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 ${
+                  plan.recommended ? 'ring-4 ring-teal-500' : ''
+                }`}
+              >
+                {plan.recommended && (
+                  <div className="absolute top-0 right-0 bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-6 py-2 rounded-bl-xl font-semibold shadow-lg">
+                    おすすめ
+                  </div>
+                )}
+                <div className="p-8">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
+                  <p className="text-slate-600 mb-6">{plan.description}</p>
+                  
+                  <div className="mb-8">
+                    {plan.price > 0 ? (
+                      <>
+                        <span className="text-4xl font-bold text-slate-900">
+                          ¥{plan.price.toLocaleString()}
+                        </span>
+                        <span className="text-slate-600 ml-2">/ 月</span>
+                      </>
+                    ) : (
+                      <span className="text-3xl font-bold text-slate-900">カスタム価格</span>
+                    )}
+                  </div>
+
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <CheckIcon className="h-5 w-5 text-teal-600 mt-0.5 mr-3 flex-shrink-0" />
+                        <span className="text-slate-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {plan.id === 'enterprise' ? (
+                    <Link
+                      href="/contact"
+                      className="block w-full text-center bg-slate-200 text-slate-700 px-6 py-4 rounded-lg font-semibold hover:bg-slate-300 transition-all duration-300"
+                    >
+                      お問い合わせ
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => handleCheckout(plan.priceId, plan.name)}
+                      disabled={loadingPriceId === plan.priceId}
+                      className={`w-full px-6 py-4 rounded-lg font-semibold transition-all duration-300 transform hover:-translate-y-0.5 ${
+                        plan.recommended
+                          ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white hover:from-teal-700 hover:to-cyan-700 shadow-lg hover:shadow-xl'
+                          : 'bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {loadingPriceId === plan.priceId ? '処理中...' : '無料で始める'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-8 md:p-12">
+            <div className="max-w-3xl mx-auto text-center">
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">
+                導入について迷っていませんか？
+              </h3>
+              <p className="text-lg text-slate-700 mb-8">
+                BuildAI Proは、500社以上の工務店様にご利用いただき、平均して業務効率が40%向上したという実績があります。
+                まずは14日間の無料トライアルで、貴社の業務がどのように変わるかをご体験ください。
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href="/demo"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 hover:border-slate-400 transition-all duration-300"
+                >
+                  デモを予約する
+                </Link>
+                <Link
+                  href="/case-studies"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-teal-700 hover:to-cyan-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  導入事例を見る
+                  <ArrowRightIcon className="ml-2 h-5 w-5" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
